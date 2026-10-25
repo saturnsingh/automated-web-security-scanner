@@ -1,63 +1,106 @@
 # Automated Web Security Scanner
 
-## Project description
-This beginner-friendly Python project makes one HTTP GET request to a URL that the user is authorized to assess, checks selected HTTP security response headers, reviews two CORS response headers, and saves findings to `security_scan_report.json`.
+A small educational Python utility that makes a single HTTP GET request to a URL the user is authorized to assess, checks a set of common HTTP security headers, and records the results in a JSON report.
 
-It checks:
+## Project overview
+
+This project is designed for learning and classroom review. It does not crawl websites, exploit vulnerabilities, or certify that a target is secure. It only inspects selected response headers from one requested URL.
+
+The scanner checks the following headers:
 - Content-Security-Policy
 - Strict-Transport-Security
 - X-Content-Type-Options
 - X-Frame-Options
 - Referrer-Policy
 - Permissions-Policy
-- Access-Control-Allow-Origin and Access-Control-Allow-Credentials (context review only)
+- Access-Control-Allow-Origin
+- Access-Control-Allow-Credentials
 
-**Important:** Missing headers are not automatically vulnerabilities. Header presence does not prove that a header is configured correctly. This tool is not a penetration-testing tool and does not crawl or exploit a site.
+## Features
+- Validates that the target URL uses http:// or https://
+- Confirms user authorization before sending a request
+- Sends a single GET request with a 10-second timeout
+- Saves the result to security_scan_report.json
+- Reports missing headers without labeling them as automatic vulnerabilities
+- Documents limitations and safe-use guidance
 
-## Technologies used
-- Python 3
-- Requests
-- JSON
-- Python standard library (`urllib.parse`, `datetime`)
+## Prerequisites
+- Python 3.10 or later
+- Internet access to the authorized target
+- Permission to test the target URL
 
-## Dataset
-This project does not require a dataset; it analyses HTTP response headers returned by the authorized test target. For a reproducible classroom demonstration, use a local test server you control and document the test responses. Do not claim that a public dataset was used.
+## Installation
 
-## Files
-- `SatyamSingh_AutomatedWebSecurityScanner.py` — source code
-- `requirements.txt` — Python dependency
-- `SatyamSingh_ProjectReport.docx` — project report
+Clone or download the repository and open a terminal in the project folder.
 
-## Setup and run
-1. Install Python 3.10 or later.
-2. Save the source file to a folder.
-3. Install the dependency:
-   ```bash
-   python -m pip install -r requirements.txt
-   ```
-4. Run:
-   ```bash
-   python SatyamSingh_AutomatedWebSecurityScanner.py
-   ```
-5. Enter a complete `http://` or `https://` URL only if you own the target or have explicit permission.
-6. Type `YES` when asked to confirm authorization.
-7. Review the terminal output and the generated `security_scan_report.json`.
+```bash
+python -m pip install -r requirements.txt
+```
 
-### Android / Pydroid 3
-Install Pydroid 3 and the `requests` package in its Pip interface. Open the `.py` file and run it. The JSON report is saved to the script's working directory; check Pydroid's file browser if you cannot locate it.
+## Run the scanner
 
-## Ethical and safe use
-- Scan only systems you own or have explicit permission to test.
-- The program sends a single GET request and follows redirects.
-- Do not use results as proof of a vulnerability or proof that a site is secure.
+```bash
+python SatyamSingh_AutomatedWebSecurityScanner.py
+```
+
+Example:
+
+```bash
+Enter a URL you are authorized to test (http:// or https://): https://example.com
+```
+
+After entering a URL, the program will ask for confirmation:
+
+```text
+Do you have authorization to scan this target? Type YES:
+```
+
+If you type YES, the script sends one HTTP request and prints a summary.
+
+## Expected behavior
+
+The script prints a report similar to:
+
+```text
+[AUTOMATED WEB SECURITY SCANNER — RESULTS]
+Target: https://example.com
+HTTP status: 200
+SECURITY HEADERS
+[PRESENT] Content-Security-Policy
+[MISSING] Strict-Transport-Security
+...
+SUMMARY: {'headers_checked': 6, 'headers_present': 3, 'headers_missing': 3, 'request_succeeded': True}
+```
+
+The JSON report is written to:
+
+```text
+security_scan_report.json
+```
+
+## Safe and authorized use
+
+- Only scan systems you own or have explicit written authorization to test.
+- Do not use the results as proof that a site is secure or vulnerable.
 - Do not disable TLS certificate verification.
-- Avoid scanning sensitive or production systems without written authorization.
+- Do not scan production or sensitive systems without permission.
+- This project is educational; it is not a vulnerability scanner or penetration-testing tool.
 
-## Limitations and future improvements
-- It only checks response headers from one requested URL.
-- It does not validate the quality of each header's policy.
-- It does not test authenticated pages or application-specific CORS behaviour.
-- Future work could include HTML/JSON export, unit tests, a local mock server, and severity guidance reviewed by a security instructor.
+## Limitations
 
-## Author
-The report identifies the student as Satyam Singh. Add class, college, and submission date if required by the organizer.
+- It checks a single URL, not a full site crawl.
+- It does not validate whether each header value is appropriate for the application.
+- It does not test authenticated pages or application-specific CORS behavior.
+- Missing headers are not automatically vulnerabilities.
+
+## Running tests
+
+The repository includes automated tests for valid and invalid URLs, timeouts, connection failures, and missing headers.
+
+```bash
+python -m pytest -q
+```
+
+## Repository status
+
+The project report file `SatyamSingh_ProjectReport.docx` is not present in this repository snapshot. It should be created separately if required by your course or instructor.

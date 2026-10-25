@@ -8,7 +8,6 @@ It is not a penetration-testing tool and does not prove that a site is secure.
 """
 
 import json
-import socket
 from datetime import datetime
 from urllib.parse import urlparse
 
@@ -41,7 +40,11 @@ SECURITY_HEADERS = {
 
 def validate_url(url):
     """Return a parsed URL if it is a valid HTTP(S) URL; otherwise raise ValueError."""
-    parsed = urlparse(url)
+    if not isinstance(url, str):
+        raise ValueError("Enter a complete URL beginning with http:// or https://.")
+
+    cleaned_url = url.strip()
+    parsed = urlparse(cleaned_url)
     if parsed.scheme not in ("http", "https") or not parsed.hostname:
         raise ValueError("Enter a complete URL beginning with http:// or https://.")
     return parsed
@@ -54,8 +57,28 @@ def check_target_confirmation(hostname):
     """
     print(f"\nTarget host: {hostname}")
     print("Only continue if you own this system or have explicit permission to test it.")
-    confirmation = input("Do you have authorization to scan this target? Type YES: ").strip()
+    try:
+        confirmation = input("Do you have authorization to scan this target? Type YES: ").strip()
+    except EOFError:
+        print("No input received. Scan cancelled.")
+        return False
     return confirmation == "YES"
+
+
+def _format_request_error(exc):
+    """Convert request exceptions into user-friendly, actionable messages."""
+    if isinstance(exc, requests.exceptions.SSLError):
+        return (
+            "TLS/SSL error: the secure connection could not be established. "
+            "Check the URL and certificate; do not disable certificate verification."
+        )
+    if isinstance(exc, requests.exceptions.Timeout):
+        return "Request timed out after 10 seconds."
+    if isinstance(exc, requests.exceptions.ConnectionError):
+        return "Connection failed. Check the URL and network connection."
+    if isinstance(exc, requests.exceptions.InvalidURL):
+        return "Invalid URL. Enter a complete http:// or https:// address."
+    return f"Request failed: {type(exc).__name__}: {exc}"
 
 
 def scan_url(url):
@@ -63,7 +86,7 @@ def scan_url(url):
     parsed = validate_url(url)
     result = {
         "project": "Automated Web Security Scanner",
-        "target_url": url,
+        "target_url": url.strip(),
         "target_host": parsed.hostname,
         "scan_time": datetime.now().astimezone().isoformat(),
         "method": "GET",
@@ -81,49 +104,48 @@ def scan_url(url):
 
     try:
         response = requests.get(
-            url,
+            url.strip(),
             timeout=10,
             allow_redirects=True,
             headers={"User-Agent": "Educational-Web-Security-Scanner/1.0"},
         )
-        result["http_status"] = response.status_code
-        result["final_url"] = response.url
-        result["redirect_count"] = len(response.history)
-
-        for header, recommendation in SECURITY_HEADERS.items():
-            value = response.headers.get(header)
-            result["findings"].append({
-                "header": header,
-                "status": "Present" if value else "Missing",
-                "value": value,
-                "recommendation": recommendation if not value else (
-                    "Header is present. Review its value and application context."
-                ),
-            })
-
-        allow_origin = response.headers.get("Access-Control-Allow-Origin")
-        allow_credentials = response.headers.get("Access-Control-Allow-Credentials")
-        result["cors_review"] = {
-            "access_control_allow_origin": allow_origin,
-            "access_control_allow_credentials": allow_credentials,
-            "wildcard_origin_observed": bool(allow_origin and allow_origin.strip() == "*"),
-            "note": (
-                "A wildcard origin is not automatically a vulnerability. "
-                "Review which resources are exposed and the full CORS configuration."
-            ),
-        }
-
-    except requests.exceptions.SSLError:
-        result["errors"].append(
-            "TLS/SSL error: the secure connection could not be established. "
-            "Check the URL and certificate; do not disable certificate verification."
-        )
-    except requests.exceptions.Timeout:
-        result["errors"].append("Request timed out after 10 seconds.")
-    except requests.exceptions.ConnectionError:
-        result["errors"].append("Connection failed. Check the URL and network connection.")
     except requests.exceptions.RequestException as exc:
-        result["errors"].append(f"Request failed: {type(exc).__name__}: {exc}")
+        result["errors"].append(_format_request_error(exc))
+        result["summary"] = {
+            "headers_checked": len(SECURITY_HEADERS),
+            "headers_present": 0,
+            "headers_missing": len(SECURITY_HEADERS),
+            "request_succeeded": False,
+        }
+        return result
+
+    result["http_status"] = response.status_code
+    result["final_url"] = response.url
+    result["redirect_count"] = len(response.history)
+
+    headers = response.headers or {}
+    for header, recommendation in SECURITY_HEADERS.items():
+        value = headers.get(header)
+        result["findings"].append({
+            "header": header,
+            "status": "Present" if value else "Missing",
+            "value": value,
+            "recommendation": recommendation if not value else (
+                "Header is present. Review its value and application context."
+            ),
+        })
+
+    allow_origin = headers.get("Access-Control-Allow-Origin")
+    allow_credentials = headers.get("Access-Control-Allow-Credentials")
+    result["cors_review"] = {
+        "access_control_allow_origin": allow_origin,
+        "access_control_allow_credentials": allow_credentials,
+        "wildcard_origin_observed": bool(allow_origin and allow_origin.strip() == "*"),
+        "note": (
+            "A wildcard origin is not automatically a vulnerability. "
+            "Review which resources are exposed and the full CORS configuration."
+        ),
+    }
 
     present = sum(item["status"] == "Present" for item in result["findings"])
     missing = sum(item["status"] == "Missing" for item in result["findings"])
@@ -131,7 +153,7 @@ def scan_url(url):
         "headers_checked": len(result["findings"]),
         "headers_present": present,
         "headers_missing": missing,
-        "request_succeeded": "http_status" in result,
+        "request_succeeded": True,
     }
     return result
 
